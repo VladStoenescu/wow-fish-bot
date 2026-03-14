@@ -6,6 +6,12 @@
 
 ✔ No hook sounds, work with all resolution.
 
+Install dependencies (requires Python 3.9+):
+```
+pip install -r requirements.txt
+```
+> **Note:** Do **not** run `pip install cv2`. The correct package is `opencv-python`, which is already listed in `requirements.txt`.
+
 How to:
 1. Equip fishing pole
 2. Move skill 'Fishing' to slot with bind '1'
