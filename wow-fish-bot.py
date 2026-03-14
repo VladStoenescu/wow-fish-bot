@@ -113,10 +113,26 @@ if __name__ == "__main__":
                     frame = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
                     frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-                    h_min = np.array((0, 0, 200), np.uint8)   # any hue, low saturation, V>=200 (bright)
-                    h_max = np.array((255, 30, 255), np.uint8) # S<=30 allows slight color tint from water
+                    # Detect the red/orange feather of the fishing cork.
+                    # Red wraps around in HSV, so two ranges are needed:
+                    # lower red (H 0-15) and upper red (H 155-180).
+                    # Using saturation >= 100 and value >= 50 avoids matching
+                    # the bright-but-desaturated water reflections that caused
+                    # false positives with the old brightness-only approach.
+                    h_min_red1 = np.array((0, 100, 50), np.uint8)
+                    h_max_red1 = np.array((15, 255, 255), np.uint8)
+                    h_min_red2 = np.array((155, 100, 50), np.uint8)
+                    h_max_red2 = np.array((180, 255, 255), np.uint8)
     
-                    mask = cv2.inRange(frame_hsv, h_min, h_max)
+                    mask_red1 = cv2.inRange(frame_hsv, h_min_red1, h_max_red1)
+                    mask_red2 = cv2.inRange(frame_hsv, h_min_red2, h_max_red2)
+                    mask = cv2.bitwise_or(mask_red1, mask_red2)
+    
+                    # Morphological cleanup: remove isolated noise pixels, then
+                    # expand the remaining blob so the centroid is stable.
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+                    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+                    mask = cv2.dilate(mask, kernel, iterations=2)
     
                     moments = cv2.moments(mask, 1)
                     dM01 = moments['m01']
@@ -126,11 +142,15 @@ if __name__ == "__main__":
                     b_x = 0
                     b_y = 0
     
-                    if dArea > 0:
+                    # Require a minimum blob area to ignore stray red pixels.
+                    if dArea > 100:
                         b_x = int(dM10 / dArea)
                         b_y = int(dM01 / dArea)
                     if lastx > 0 and lasty > 0:
-                        if lastx != b_x and lasty != b_y:
+                        # Require movement of at least 5 pixels in either axis
+                        # so the cork bobbing naturally on waves does not
+                        # trigger a false catch.
+                        if abs(lastx - b_x) > 5 or abs(lasty - b_y) > 5:
                             is_block = False
                             if b_x < 1: b_x = lastx
                             if b_y < 1: b_y = lasty
@@ -145,7 +165,7 @@ if __name__ == "__main__":
                     lasty = b_y
                     
                     # show windows with mask
-                    # cv2.imshow("fish_mask", mask)
+                    # cv2.imshow("fish_cork_mask", mask)
                     # cv2.imshow("fish_frame", frame)
     
                     if time.time() - new_cast_time > recast_time:
