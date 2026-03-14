@@ -105,7 +105,7 @@ if __name__ == "__main__":
                     is_block = True
                     time.sleep(2)
                 else:
-                    fish_area = (0, rect[3] / 2, rect[2], rect[3])
+                    fish_area = (rect[0], (rect[1] + rect[3]) // 2, rect[2], rect[3])
     
                     img = ImageGrab.grab(fish_area)
                     img_np = np.array(img)
@@ -113,8 +113,8 @@ if __name__ == "__main__":
                     frame = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
                     frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-                    h_min = np.array((0, 0, 253), np.uint8)
-                    h_max = np.array((255, 0, 255), np.uint8)
+                    h_min = np.array((0, 0, 200), np.uint8)   # any hue, low saturation, V>=200 (bright)
+                    h_max = np.array((255, 30, 255), np.uint8) # S<=30 allows slight color tint from water
     
                     mask = cv2.inRange(frame_hsv, h_min, h_max)
     
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                             is_block = False
                             if b_x < 1: b_x = lastx
                             if b_y < 1: b_y = lasty
-                            pyautogui.moveTo(b_x, b_y + fish_area[1], 0.3)
+                            pyautogui.moveTo(b_x + fish_area[0], b_y + fish_area[1], 0.3)
                             pyautogui.keyDown('shiftleft')
                             pyautogui.mouseDown(button='right')
                             pyautogui.mouseUp(button='right')
