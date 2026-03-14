@@ -52,7 +52,6 @@ if __name__ == "__main__":
     is_block = False
     new_cast_time = 0
     recast_time = 40
-    move_threshold = 10  # minimum Manhattan distance (pixels) for catch detection; filters sparkles/pre-bite micro-movements
     wait_mes = 0    
     app = "WoW Fish BOT by YECHEZ"
     link = "github.com/YECHEZ/wow-fish-bot"
@@ -131,8 +130,7 @@ if __name__ == "__main__":
                         b_x = int(dM10 / dArea)
                         b_y = int(dM01 / dArea)
                     if lastx > 0 and lasty > 0:
-                        movement_distance = abs(lastx - b_x) + abs(lasty - b_y)
-                        if movement_distance > move_threshold:
+                        if lastx != b_x and lasty != b_y:
                             is_block = False
                             if b_x < 1: b_x = lastx
                             if b_y < 1: b_y = lasty
