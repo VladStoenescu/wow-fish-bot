@@ -49,10 +49,20 @@ if __name__ == "__main__":
     flag_exit = False
     lastx = 0
     lasty = 0
+    smooth_x = 0.0
+    smooth_y = 0.0
+    smooth_init = False
     is_block = False
     new_cast_time = 0
     recast_time = 40
-    wait_mes = 0    
+    wait_mes = 0
+    # A real fish-bite splash dips the cork down by more than this many pixels
+    # below its smoothed resting position.  Natural wave bobbing stays well
+    # under this value; a genuine splash typically exceeds it.
+    SPLASH_THRESHOLD = 15
+    # EMA weight used to track the cork's resting position.  A small value
+    # (0.2) lets the average follow slow drift while ignoring sudden dips.
+    SMOOTH_ALPHA = 0.2
     app = "WoW Fish BOT by YECHEZ"
     link = "github.com/YECHEZ/wow-fish-bot"
     app_ico = resource_path('wow-fish-bot.ico')
@@ -99,6 +109,9 @@ if __name__ == "__main__":
                 if is_block == False:
                     lastx = 0
                     lasty = 0
+                    smooth_x = 0.0
+                    smooth_y = 0.0
+                    smooth_init = False
                     pyautogui.press('1')
                     # print("Fish on !")
                     new_cast_time = time.time()
@@ -146,11 +159,22 @@ if __name__ == "__main__":
                     if dArea > 100:
                         b_x = int(dM10 / dArea)
                         b_y = int(dM01 / dArea)
-                    if lastx > 0 and lasty > 0:
-                        # Require movement of at least 5 pixels in either axis
-                        # so the cork bobbing naturally on waves does not
-                        # trigger a false catch.
-                        if abs(lastx - b_x) > 5 or abs(lasty - b_y) > 5:
+                    if lastx > 0 and lasty > 0 and b_x > 0 and b_y > 0:
+                        # Initialise the smoothed resting position on the
+                        # first valid detection after a new cast.
+                        if not smooth_init:
+                            smooth_x = float(b_x)
+                            smooth_y = float(b_y)
+                            smooth_init = True
+                        # A real splash is a sudden downward dip well below
+                        # the smoothed resting position.  In image coordinates
+                        # y increases downward, so a dip means b_y exceeds
+                        # smooth_y by at least SPLASH_THRESHOLD pixels.
+                        # Normal wave bobbing produces much smaller deltas and
+                        # does not consistently push the cork downward, so
+                        # this avoids the false catches the old 5-pixel
+                        # any-direction check caused.
+                        if b_y - smooth_y > SPLASH_THRESHOLD:
                             is_block = False
                             if b_x < 1: b_x = lastx
                             if b_y < 1: b_y = lasty
@@ -161,6 +185,12 @@ if __name__ == "__main__":
                             pyautogui.keyUp('shiftleft')
                             # print("Catch !")
                             time.sleep(5)
+                        else:
+                            # Update the EMA so it slowly tracks the cork's
+                            # natural drift without being fooled by a fast dip.
+                            # Stored as float to preserve precision across updates.
+                            smooth_x += SMOOTH_ALPHA * (b_x - smooth_x)
+                            smooth_y += SMOOTH_ALPHA * (b_y - smooth_y)
                     lastx = b_x
                     lasty = b_y
                     
