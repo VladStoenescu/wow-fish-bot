@@ -4,14 +4,16 @@ import sys
 import os
 import struct
 import time
+import types
 #
 import pyautogui
 import numpy as np
 import cv2
 #
 from win10toast import ToastNotifier
+from win32gui import Shell_NotifyIcon, NIM_DELETE, GetWindowText, GetForegroundWindow, GetWindowRect
+from win32api import PostQuitMessage
 from PIL import ImageGrab
-from win32gui import GetWindowText, GetForegroundWindow, GetWindowRect
 from threading import Thread
 from infi.systray import SysTrayIcon
 
@@ -60,6 +62,15 @@ if __name__ == "__main__":
                           menu_options, on_quit=app_destroy)
     systray.start()
     toaster = ToastNotifier()
+    # Fix: win10toast's on_destroy returns None instead of 0, causing
+    # "WNDPROC return value cannot be converted to LRESULT" and a cascading
+    # "TypeError: WPARAM is simple, so must be an int object (got NoneType)".
+    def _on_destroy_fixed(self, hwnd, msg, wparam, lparam):
+        nid = (self.hwnd, 0)
+        Shell_NotifyIcon(NIM_DELETE, nid)
+        PostQuitMessage(0)
+        return 0
+    toaster.on_destroy = types.MethodType(_on_destroy_fixed, toaster)
     toaster.show_toast(app,
                        link,
                        icon_path=app_ico,
@@ -72,8 +83,9 @@ if __name__ == "__main__":
                     toaster.show_toast(app,
                                        "Waiting for World of Warcraft"
                                        + " as active window",
-                                       icon_path='wow-fish-bot.ico',
-                                       duration=5)                  
+                                       icon_path=app_ico,
+                                       duration=5,
+                                       threaded=True)                  
                 # print("Waiting for World of Warcraft as active window")
                 systray.update(
                     hover_text=app
